@@ -1,102 +1,112 @@
 [
-  {
-    "id": 1,
-    "sku": "GPU-0001",
-    "name": "NVIDIA GeForce RTX 5090 Ti 32GB GDDR7",
-    "description": "Placa de vídeo topo de linha com 32GB GDDR7, ray tracing 4.0, DLSS 4, ideal para 4K e 8K",
-    "unit_price": 12999.9,
-    "is_active": true,
-    "created_at": "2026-10-18T10:30:00Z",
-    "updated_at": "2026-10-18T10:30:00Z"
-  },
-  {
-    "id": 2,
-    "sku": "CPU-0002",
-    "name": "Intel Core i9-15900KX 24C/32T 6.2GHz",
-    "description": "Processador desktop de 24 núcleos com boost de 6.2GHz, cache 120MB, LGA 1851",
-    "unit_price": 8499.9,
-    "is_active": true,
-    "created_at": "2026-10-18T10:30:00Z",
-    "updated_at": "2026-10-18T10:30:00Z"
-  },
-  {
-    "id": 3,
-    "sku": "MB-0003",
-    "name": "ASUS ROG Maximus Z990 Hero WiFi",
-    "description": "Placa-mãe Z990, DDR5 9600MHz, PCIe 6.0, 2x M.2 Gen5, WiFi 7, 2.5GbE",
-    "unit_price": 7299.9,
-    "is_active": true,
-    "created_at": "2026-10-18T10:30:00Z",
-    "updated_at": "2026-10-18T10:30:00Z"
-  },
-  {
-    "id": 4,
-    "sku": "RAM-0004",
-    "name": "G.Skill Trident Z5 RGB DDR5 9600MHz 64GB (2x32GB)",
-    "description": "Kit de memória DDR5 9600MHz CL36, 64GB, RGB, perfil EXPO/XMP 3.0",
-    "unit_price": 5499.9,
-    "is_active": true,
-    "created_at": "2026-10-18T10:30:00Z",
-    "updated_at": "2026-10-18T10:30:00Z"
-  },
-  {
-    "id": 5,
-    "sku": "SSD-0005",
-    "name": "Samsung 9100 Pro 4TB PCIe 5.0 NVMe",
-    "description": "SSD NVMe Gen5 4TB, leitura 14000MB/s, escrita 12000MB/s, DRAM cache",
-    "unit_price": 9999.9,
-    "is_active": true,
-    "created_at": "2026-10-18T10:30:00Z",
-    "updated_at": "2026-10-18T10:30:00Z"
-  },
-  {
-    "id": 6,
-    "sku": "PSU-0006",
-    "name": "Corsair AX1600i 1600W 80+ Titanium",
-    "description": "Fonte 1600W, 80 Plus Titanium, modular total, ATX 3.1, 12VHPWR, fansilent",
-    "unit_price": 4299.9,
-    "is_active": true,
-    "created_at": "2026-10-18T10:30:00Z",
-    "updated_at": "2026-10-18T10:30:00Z"
-  },
-  {
-    "id": 7,
-    "sku": "CASE-0007",
-    "name": "Lian Li O11D EVO XL Water Edition",
-    "description": "Gabinete full tower, vidro temperado, suporte a radiador 420mm, E-ATX",
-    "unit_price": 3799.9,
-    "is_active": true,
-    "created_at": "2026-10-18T10:30:00Z",
-    "updated_at": "2026-10-18T10:30:00Z"
-  },
-  {
-    "id": 8,
-    "sku": "COOL-0008",
-    "name": "Corsair iCUE QX120 Liquid 420mm",
-    "description": "Water cooler AIO 420mm, tela LCD 3.5\", RGB, pump 2.0, TDP 450W",
-    "unit_price": 5199.9,
-    "is_active": true,
-    "created_at": "2026-10-18T10:30:00Z",
-    "updated_at": "2026-10-18T10:30:00Z"
-  },
-  {
-    "id": 9,
-    "sku": "MON-0009",
-    "name": "ASUS ROG Swift OLED PG32UCDP 32\" 4K 240Hz",
-    "description": "Monitor OLED 32\" 4K 240Hz, 0.03ms, HDR 1000, DisplayHDR True Black 400, G-Sync",
-    "unit_price": 14999.9,
-    "is_active": true,
-    "created_at": "2026-10-18T10:30:00Z",
-    "updated_at": "2026-10-18T10:30:00Z"
-  },
-  {
-    "id": 10,
-    "sku": "KB-0010",
-    "name": "SteelSeries Apex Pro TKL Gen 3",
-    "description": "Teclado mecânico TKL, switches OmniPoint 3.0, OLED, 8000Hz polling, RGB",
-    "unit_price": 2899.9,
-    "is_active": false,
-    "created_at": "2026-10-18T10:30:00Z",
-    "updated_at": "2026-10-18T10:30:00Z"
-  }
+    {
+        "id": 1,
+        "sku": "GPU-0001",
+        "name": "NVIDIA GeForce RTX 5090 Ti 32GB GDDR7",
+        "description": "Placa de vídeo topo de linha com 32GB GDDR7, ray tracing 4.0, DLSS 4, ideal para 4K e 8K",
+        "unit_price": 12999.9,
+        "is_active": true,
+        "created_at": "2026-10-18T10:30:00Z",
+        "updated_at": "2026-10-18T10:30:00Z"
+    },
+    {
+        "id": 2,
+        "sku": "CPU-0002",
+        "name": "Intel Core i9-15900KX 24C/32T 6.2GHz",
+        "description": "Processador desktop de 24 núcleos com boost de 6.2GHz, cache 120MB, LGA 1851",
+        "unit_price": 8499.9,
+        "is_active": true,
+        "created_at": "2026-10-18T10:30:00Z",
+        "updated_at": "2026-10-18T10:30:00Z"
+    },
+    {
+        "id": 3,
+        "sku": "MB-0003",
+        "name": "ASUS ROG Maximus Z990 Hero WiFi",
+        "description": "Placa-mãe Z990, DDR5 9600MHz, PCIe 6.0, 2x M.2 Gen5, WiFi 7, 2.5GbE",
+        "unit_price": 7299.9,
+        "is_active": true,
+        "created_at": "2026-10-18T10:30:00Z",
+        "updated_at": "2026-10-18T10:30:00Z"
+    },
+    {
+        "id": 4,
+        "sku": "RAM-0004",
+        "name": "G.Skill Trident Z5 RGB DDR5 9600MHz 64GB (2x32GB)",
+        "description": "Kit de memória DDR5 9600MHz CL36, 64GB, RGB, perfil EXPO/XMP 3.0",
+        "unit_price": 5499.9,
+        "is_active": true,
+        "created_at": "2026-10-18T10:30:00Z",
+        "updated_at": "2026-10-18T10:30:00Z"
+    },
+    {
+        "id": 5,
+        "sku": "SSD-0005",
+        "name": "Samsung 9100 Pro 4TB PCIe 5.0 NVMe",
+        "description": "SSD NVMe Gen5 4TB, leitura 14000MB/s, escrita 12000MB/s, DRAM cache",
+        "unit_price": 9999.9,
+        "is_active": true,
+        "created_at": "2026-10-18T10:30:00Z",
+        "updated_at": "2026-10-18T10:30:00Z"
+    },
+    {
+        "id": 6,
+        "sku": "PSU-0006",
+        "name": "Corsair AX1600i 1600W 80+ Titanium",
+        "description": "Fonte 1600W, 80 Plus Titanium, modular total, ATX 3.1, 12VHPWR, fansilent",
+        "unit_price": 4299.9,
+        "is_active": true,
+        "created_at": "2026-10-18T10:30:00Z",
+        "updated_at": "2026-10-18T10:30:00Z"
+    },
+    {
+        "id": 7,
+        "sku": "CASE-0007",
+        "name": "Lian Li O11D EVO XL Water Edition",
+        "description": "Gabinete full tower, vidro temperado, suporte a radiador 420mm, E-ATX",
+        "unit_price": 3799.9,
+        "is_active": true,
+        "created_at": "2026-10-18T10:30:00Z",
+        "updated_at": "2026-10-18T10:30:00Z"
+    },
+    {
+        "id": 8,
+        "sku": "COOL-0008",
+        "name": "Corsair iCUE QX120 Liquid 420mm",
+        "description": "Water cooler AIO 420mm, tela LCD 3.5\", RGB, pump 2.0, TDP 450W",
+        "unit_price": 5199.9,
+        "is_active": true,
+        "created_at": "2026-10-18T10:30:00Z",
+        "updated_at": "2026-10-18T10:30:00Z"
+    },
+    {
+        "id": 9,
+        "sku": "MON-0009",
+        "name": "ASUS ROG Swift OLED PG32UCDP 32\" 4K 240Hz",
+        "description": "Monitor OLED 32\" 4K 240Hz, 0.03ms, HDR 1000, DisplayHDR True Black 400, G-Sync",
+        "unit_price": 14999.9,
+        "is_active": true,
+        "created_at": "2026-10-18T10:30:00Z",
+        "updated_at": "2026-10-18T10:30:00Z"
+    },
+    {
+        "id": 10,
+        "sku": "KB-0010",
+        "name": "SteelSeries Apex Pro TKL Gen 3",
+        "description": "Teclado mecânico TKL, switches OmniPoint 3.0, OLED, 8000Hz polling, RGB",
+        "unit_price": 2899.9,
+        "is_active": false,
+        "created_at": "2026-10-18T10:30:00Z",
+        "updated_at": "2026-10-18T10:30:00Z"
+    },
+    {
+        "id": 11,
+        "sku": "TEST-001",
+        "name": "post pedido",
+        "description": "string",
+        "unit_price": 12.0,
+        "is_active": false,
+        "created_at": "2026-10-25T22:18:15.889175Z",
+        "updated_at": null
+    }
 ]

@@ -1,7 +1,7 @@
-from fastapi import FastAPI, status
+from fastapi import FastAPI, status, HTTPException
 from app.schemas.product import *
 from decimal import Decimal
-from services.product import OperationFile
+from app.services import product as product_services
 
  
 app = FastAPI()
@@ -9,28 +9,33 @@ app = FastAPI()
 # listar produto
 @app.get("/api/v1/products")
 def get_products():
-    return OperationFile().view_products()
+    return product_services.fetch_products()
 
 # listar um produto
 @app.get("/api/v1/products/{id}")
 def get_produtc_by_id(id: int):
-    return OperationFile().view_product(id)
+    return product_services.fetch_product(id)
 
 
 @app.post("/api/v1/products", response_model=ProductResponse, status_code=status.HTTP_201_CREATED)
-def add_produtc(product_in : Product):
-    return OperationFile().adicionar_produto({
+def create_product(product_in : Product):
+    try:
+
+        return product_services.register_product(product_in)
+    except ValueError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.patch("/api/v1//products/{id}")
+def atualiza_products(id: int):
+    pass
+
+@app.patch("/api/v1/products/{id}/status")
+def status_products(id: int):
+    try :
         
-        "sku": product_in.sku,
-        "name": product_in.name,
-        "description": product_in.description,
-        "unit_price": product_in.unit_price,
-        "is_active": True
-        
-    })
-
-
-
+        product_services.alterar_status(id)
+    except Exception as e:
+        raise ValueError("ocorreu um erro inesperado: {e}")
 
 
 

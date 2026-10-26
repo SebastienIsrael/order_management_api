@@ -7,6 +7,7 @@ class Product(BaseModel):
     description : str | None = None
     
 
-class ProductResponse(BaseModel):
+class ProductResponse(Product):
     id: int 
     is_active : bool = True
+    created_at : str
