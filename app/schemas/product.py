@@ -1,4 +1,5 @@
 from pydantic import BaseModel
+from decimal import Decimal
 
 class Product(BaseModel):
     sku : str
@@ -11,3 +12,11 @@ class ProductResponse(Product):
     id: int 
     is_active : bool = True
     created_at : str
+
+
+class ProductUpdate(Product):
+    sku: str | None
+    name : str | None
+    description : str | None
+    unit_price : Decimal | None
+    is_active: bool | None = None

@@ -33,7 +33,7 @@ def atualiza_products(id: int):
 def status_products(id: int):
     try :
         
-        product_services.alterar_status(id)
+        product_services.toogle_status(id)
     except Exception as e:
         raise ValueError("ocorreu um erro inesperado: {e}")
 

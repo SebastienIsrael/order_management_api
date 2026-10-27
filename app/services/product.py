@@ -1,6 +1,6 @@
 
 from app.repositories import products as repository_product
-from app.schemas.product import Product
+from app.schemas.product import Product, ProductUpdate
 from datetime import datetime, timezone
 
 
@@ -39,10 +39,14 @@ def register_product(product_in: Product):
             except Exception as e:
                    raise ValueError(f"falha ao salvar o product :{e}")
       
-def update_product():
-      pass
+def update_product(product_in: ProductUpdate):
+      update_data = product_in.model_dump(exclude_unset=True)
 
-def alterar_status(id: int):
+      if not update_data:
+            return 
+      
+
+def toogle_status(id: int):
       for product in products:
             if product["id"] == id:
                   try :
