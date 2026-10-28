@@ -5,67 +5,61 @@ import tempfile
 import copy
 
 file_path = Path(__file__).resolve().parent.parent / "db" / "products_db.json"
-_data = None
-def _load():
+_products = None
+
+def _load() -> list[dict]:
     
-    global _data
-    if _data is None:
+    global _products
+    if _products is None:
         try:
             with open(file_path, "r", encoding="utf-8-sig") as f:
-                data_content = f.read()
-               
-                _data = json.loads(data_content) if data_content.strip() else []
+                json_content = f.read()  
+                _products = json.loads(json_content) if json_content.strip() else []
 
         except FileNotFoundError:
-             _data = []
-    return _data
+             _products = []
+    return _products
                 
+def _save() -> None:
+    global _products
 
-def _save():
-    global _data
-    dir_name = os.path.dirname(file_path) or '.'
-    
     try:
+        dir_name = os.path.dirname(file_path) or '.'
         fd, tmp_path = tempfile.mkstemp(dir=dir_name, suffix='.tmp')
         with os.fdopen(fd, 'w', encoding='utf-8') as f:
-                json.dump(_data, f, indent=4, ensure_ascii=False)
+                json.dump(_products, f, indent=4, ensure_ascii=False)
         os.replace(tmp_path, file_path)
 
     except Exception:
          os.unlink(tmp_path)
          raise
-    
-def read_data():
-     return copy.deepcopy(_load())
 
-def find_by_id(id: int) -> dict | None:
+def _find_raw(product_id: int) -> dict | None:
      _load()
-     for product in _data:
-          if product['id'] == id:
-               return copy.deepcopy(product)
-          return None
-     
-def add_data(new_data):
-     global _data
+     for product in _products:
+          if product['id'] == product_id:
+               return product
+     return None
+
+def find_all() -> list[dict]:
+     return copy.deepcopy(_load())
+  
+def find_by_id(product_id: int) -> dict | None:
+     return copy.deepcopy(_find_raw(product_id))
+
+def add_product(new_product: dict) -> None:
+     global _products
      _load()
-     _data.append(new_data)
+     _products.append(new_product)
      _save()
 
-def alter_status(id: int):
-     global _data
-     for d in _data:
-          if d['id'] == id:
-               d['is_active'] = False if d['is_active'] else True
-               _save()
-               return 
-def update(id: int, updated_product: dict) -> bool:
-     global _data 
-     for data in _data:
-          if data["id"] == id:
-               data.update(updated_product)
-               _save()
-     return False
-    
+def update_product(product_id: int, updated_product: dict) -> bool:
+     global _products 
+     product = _find_raw(product_id)
+     if not  product:
+          return False
 
-    
-    
+     product.update(updated_product)
+     _save()
+     return True
+     
