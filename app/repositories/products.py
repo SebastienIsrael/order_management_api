@@ -49,9 +49,13 @@ def find_by_id(product_id: int) -> dict | None:
 
 def add_product(new_product: dict) -> None:
      global _products
-     _load()
-     _products.append(new_product)
-     _save()
+     try:
+          _load()
+          _products.append(new_product)
+          _save()
+     except Exception:
+          return False
+     
 
 def update_product(product_id: int, updated_product: dict) -> bool:
      global _products 

@@ -6,36 +6,39 @@ from app.services import product as product_services
  
 app = FastAPI()
 
-# listar produto
+# get all products
 @app.get("/api/v1/products")
 def get_products():
     return product_services.fetch_products()
 
-# listar um produto
+# get all product
 @app.get("/api/v1/products/{id}")
 def get_produtc_by_id(id: int):
     return product_services.fetch_product(id)
 
-
+# create new product
 @app.post("/api/v1/products", response_model=ProductResponse, status_code=status.HTTP_201_CREATED)
 def create_product(product_in : Product):
     try:
-
         return product_services.register_product(product_in)
     except ValueError as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+# alter product
 @app.patch("/api/v1//products/{id}")
-def atualiza_products(id: int):
-    pass
+def atualiza_products(product_id: int, product_update: ProductUpdate):
+    try:
+        product_services.update_product(product_id, product_update)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
+# alter status on ptoduct 
 @app.patch("/api/v1/products/{id}/status")
 def status_products(id: int):
-    try :
-        
+    try :   
         product_services.toogle_status(id)
     except Exception as e:
-        raise ValueError("ocorreu um erro inesperado: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 

@@ -105,7 +105,7 @@
         "name": "post pedido",
         "description": "string",
         "unit_price": 12.0,
-        "is_active": false,
+        "is_active": true,
         "created_at": "2026-10-25T22:18:15.889175Z",
         "updated_at": null
     }
