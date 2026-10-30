@@ -18,5 +18,5 @@ class ProductUpdate(Product):
     sku: str | None
     name : str | None
     description : str | None
-    unit_price : Decimal | None
+    unit_price : float | None
     is_active: bool | None = None

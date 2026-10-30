@@ -101,10 +101,10 @@
     },
     {
         "id": 11,
-        "sku": "TEST-001",
-        "name": "post pedido",
-        "description": "string",
-        "unit_price": 12.0,
+        "sku": "TEST-003",
+        "name": "teclado hyper x",
+        "description": "usado",
+        "unit_price": 250.0,
         "is_active": true,
         "created_at": "2026-10-25T22:18:15.889175Z",
         "updated_at": null

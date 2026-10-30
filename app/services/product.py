@@ -40,7 +40,7 @@ def register_product(product_in: Product):
             except Exception as e:
                    raise ValueError(f"falha ao salvar o product :{e}")
       
-def update_product(product_in: ProductUpdate, product_id : int):
+def update_product(product_id : int, product_in: ProductUpdate):
       product = repository_product.find_by_id(product_id)
       if not product:
             raise ValueError('product id not found')
@@ -49,8 +49,8 @@ def update_product(product_in: ProductUpdate, product_id : int):
 
       if not update_data:
             return 
-      product.update(update_data)
-      repository_product.update_product(products)
+      
+      repository_product.update_product(product_id, update_data)
       
 
 def toogle_status(product_id: int):

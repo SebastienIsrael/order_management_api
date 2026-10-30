@@ -25,10 +25,11 @@ def create_product(product_in : Product):
         raise HTTPException(status_code=500, detail=str(e))
 
 # alter product
-@app.patch("/api/v1//products/{id}")
+@app.patch("/api/v1/products/{product_id}")
 def atualiza_products(product_id: int, product_update: ProductUpdate):
     try:
         product_services.update_product(product_id, product_update)
+        
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -41,7 +42,11 @@ def status_products(id: int):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-
+# product_services.update_product(11,{ "sku": "TEST-003",
+#   "name": "teclado hyper x",
+#   "description": "usado",
+#   "unit_price": 250,
+#   "is_active": True})
 
 
 
