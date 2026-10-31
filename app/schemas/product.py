@@ -12,7 +12,7 @@ class ProductResponse(Product):
     id: int 
     is_active : bool = True
     created_at : str
-    update_at : str | None
+    updated_at : str | None
 
 
 class ProductUpdate(Product):
