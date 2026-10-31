@@ -37,6 +37,7 @@ def register_product(product_in: Product):
                   }
                   
                   repository_product.add_product(product)
+                  return product
             except Exception as e:
                    raise ValueError(f"falha ao salvar o product :{e}")
       
@@ -51,6 +52,7 @@ def update_product(product_id : int, product_in: ProductUpdate):
             return 
       
       repository_product.update_product(product_id, update_data)
+      return product
       
 
 def toogle_status(product_id: int):
@@ -61,6 +63,7 @@ def toogle_status(product_id: int):
       product['is_active'] = not product["is_active"]
 
       repository_product.update_product(product_id, product)
+      return product
 
 
 

@@ -7,12 +7,12 @@ from app.services import product as product_services
 app = FastAPI()
 
 # get all products
-@app.get("/api/v1/products")
+@app.get("/api/v1/products", response_model=list[ProductResponse], status_code=status.HTTP_200_OK)
 def get_products():
     return product_services.fetch_products()
 
 # get all product
-@app.get("/api/v1/products/{id}")
+@app.get("/api/v1/products/{id}", response_model=ProductResponse,status_code=status.HTTP_200_OK)
 def get_produtc_by_id(id: int):
     return product_services.fetch_product(id)
 
@@ -25,19 +25,19 @@ def create_product(product_in : Product):
         raise HTTPException(status_code=500, detail=str(e))
 
 # alter product
-@app.patch("/api/v1/products/{product_id}")
+@app.patch("/api/v1/products/{product_id}", response_model=ProductResponse,status_code=status.HTTP_200_OK )
 def atualiza_products(product_id: int, product_update: ProductUpdate):
     try:
-        product_services.update_product(product_id, product_update)
+        return product_services.update_product(product_id, product_update)
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 # alter status on ptoduct 
-@app.patch("/api/v1/products/{id}/status")
+@app.patch("/api/v1/products/{id}/status", response_model=ProductResponse,status_code=status.HTTP_200_OK)
 def status_products(id: int):
     try :   
-        product_services.toogle_status(id)
+        return product_services.toogle_status(id)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
