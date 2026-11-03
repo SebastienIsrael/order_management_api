@@ -1,60 +1,68 @@
-from fastapi import FastAPI, status, HTTPException
-from app.schemas.product import *
-from decimal import Decimal
+from fastapi import APIRouter, status, HTTPException
+
+from app.schemas.product import Product, ProductResponse, ProductUpdate
 from app.services import product as product_services
 
- 
-app = FastAPI()
+router = APIRouter(prefix="/products", tags=["products"])
 
-# get all products
-@app.get("/api/v1/products", response_model=list[ProductResponse], status_code=status.HTTP_200_OK)
+
+@router.get("/", response_model=list[ProductResponse], status_code=status.HTTP_200_OK)
+@router.get("", response_model=list[ProductResponse], status_code=status.HTTP_200_OK)
 def get_products():
     return product_services.fetch_products()
 
-# get all product
-@app.get("/api/v1/products/{id}", response_model=ProductResponse,status_code=status.HTTP_200_OK)
-def get_produtc_by_id(id: int):
-    return product_services.fetch_product(id)
 
-# create new product
-@app.post("/api/v1/products", response_model=ProductResponse, status_code=status.HTTP_201_CREATED)
-def create_product(product_in : Product):
+@router.get("/{id}", response_model=ProductResponse, status_code=status.HTTP_200_OK)
+def get_product_by_id(id: int):
+    try:
+        return product_services.fetch_product(id)
+    except ValueError as e:
+        if str(e) == "PROD_NOT_FOUND":
+            raise HTTPException(status_code=404, detail="Product not found")
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("", response_model=ProductResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=ProductResponse, status_code=status.HTTP_201_CREATED)
+def create_product(product_in: Product):
     try:
         return product_services.register_product(product_in)
     except ValueError as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        msg = str(e)
+        if msg == "SKU_ALREADY_EXISTS":
+            raise HTTPException(status_code=409, detail="SKU already exists")
+        if msg.startswith("falha ao salvar"):
+            raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=422, detail=msg)
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error")
 
-# alter product
-@app.patch("/api/v1/products/{product_id}", response_model=ProductResponse,status_code=status.HTTP_200_OK )
-def atualiza_products(product_id: int, product_update: ProductUpdate):
+
+@router.patch("/{product_id}", response_model=ProductResponse, status_code=status.HTTP_200_OK)
+def update_product(product_id: int, product_update: ProductUpdate):
     try:
-        return product_services.update_product(product_id, product_update)
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        result = product_services.update_product(product_id, product_update)
+        if result is None:
+            return product_services.fetch_product(product_id)
+        return result
+    except ValueError as e:
+        msg = str(e)
+        if msg == "PROD_NOT_FOUND":
+            raise HTTPException(status_code=404, detail="Product not found")
+        if msg == "SKU_ALREADY_EXISTS":
+            raise HTTPException(status_code=409, detail="SKU already exists")
+        raise HTTPException(status_code=422, detail=msg)
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error")
 
-# alter status on ptoduct 
-@app.patch("/api/v1/products/{id}/status", response_model=ProductResponse,status_code=status.HTTP_200_OK)
+
+@router.patch("/{id}/status", response_model=ProductResponse, status_code=status.HTTP_200_OK)
 def status_products(id: int):
-    try :   
+    try:
         return product_services.toogle_status(id)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-# product_services.update_product(11,{ "sku": "TEST-003",
-#   "name": "teclado hyper x",
-#   "description": "usado",
-#   "unit_price": 250,
-#   "is_active": True})
-
-
-
-        
-
-
-            
-
-
-            
-
+    except ValueError as e:
+        if str(e) == "PROD_NOT_FOUND":
+            raise HTTPException(status_code=404, detail="Product not found")
+        raise HTTPException(status_code=422, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error")

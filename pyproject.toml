@@ -8,7 +8,7 @@ dependencies = [
 ]
 
 [tool.fastapi]
-entrypoint = "app.api.v1.endpoints.products:app"
+entrypoint = "app.main:app"
 
 [tool.uv]
 package = true
