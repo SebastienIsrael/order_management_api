@@ -3,7 +3,11 @@ name = "order_management_api"
 version = "0.1.0"
 requires-python = ">=3.14"
 dependencies = [
+    "alembic>=1.14",
     "fastapi[standard]>=0.143.0",
+    "psycopg[binary]>=3.2",
+    "pydantic-settings>=2.6",
+    "sqlalchemy>=2.0.36",
     "uvicorn>=0.24.0",
 ]
 
@@ -16,6 +20,16 @@ package = true
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "httpx>=0.27",
+    "pytest>=8.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
 
 [tool.hatch.build.targets.wheel]
 packages = ["app"]   
