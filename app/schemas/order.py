@@ -1,6 +1,9 @@
-from pydantic import BaseModel, Field
+from datetime import datetime
 from decimal import Decimal
-from typing import List
+
+from pydantic import BaseModel, ConfigDict, Field
+
+from app.core.enums import OrderStatus
 
 
 class OrderItemCreate(BaseModel):
@@ -9,8 +12,8 @@ class OrderItemCreate(BaseModel):
 
 
 class OrderCreate(BaseModel):
-    customer_reference: str = Field(..., min_length=1)
-    items: List[OrderItemCreate] = Field(..., min_length=1)
+    customer_reference: str = Field(..., min_length=1, max_length=100)
+    items: list[OrderItemCreate] = Field(..., min_length=1)
 
 
 class OrderItemResponse(BaseModel):
@@ -20,13 +23,17 @@ class OrderItemResponse(BaseModel):
     unit_price: Decimal
     line_total: Decimal
 
+    model_config = ConfigDict(from_attributes=True)
+
 
 class OrderResponse(BaseModel):
     id: int
     order_number: str
     customer_reference: str
-    status: str
+    status: OrderStatus
     total_amount: Decimal
-    items: List[OrderItemResponse] = []
-    created_at: str
-    updated_at: str | None = None
+    items: list[OrderItemResponse] = Field(default_factory=list)
+    created_at: datetime
+    updated_at: datetime | None = None
+
+    model_config = ConfigDict(from_attributes=True)
