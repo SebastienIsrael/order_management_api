@@ -1,113 +1,200 @@
-from decimal import Decimal
-from datetime import datetime, timezone
+import hashlib
+import json
 import uuid
+from decimal import Decimal
 
-from app.repositories import orders as orders_repo
-from app.repositories import products as products_repo
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
+
+from app.core.enums import MovementType, OrderStatus
+from app.core.exceptions import ConflictError, NotFoundError, UnprocessableEntityError
+from app.models.inventory_movement import InventoryMovement
+from app.models.order import Order, OrderItem
 from app.repositories import inventory as inventory_repo
 from app.repositories import inventory_movements as movements_repo
+from app.repositories import orders as orders_repo
+from app.repositories import products as products_repo
+from app.schemas.order import OrderCreate, OrderItemCreate
 
 
-def _get_utc_now() -> str:
-    return datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
-
-
-def _consolidate_items(items):
-    consolidated = {}
+def _consolidate_items(items: list[OrderItemCreate]) -> dict[int, int]:
+    consolidated: dict[int, int] = {}
     for item in items:
-        pid = item.product_id
-        qty = item.quantity
-        if qty <= 0:
-            raise ValueError("INVALID_QUANTITY")
-        consolidated[pid] = consolidated.get(pid, 0) + qty
+        if item.quantity <= 0:
+            raise UnprocessableEntityError("INVALID_QUANTITY")
+        consolidated[item.product_id] = consolidated.get(item.product_id, 0) + item.quantity
     return consolidated
 
 
-def create_order(order_in, idempotency_key: str | None = None):
-    # idempotency simple in-memory style persisted via order number? For V1 keep simple but follow structure
-    items_consolidated = _consolidate_items(order_in.items)
-    if not items_consolidated:
-        raise ValueError("EMPTY_ORDER")
-
-    # Check all products
-    order_items_details = []
-    for pid, qty in items_consolidated.items():
-        product = products_repo.find_by_id(pid)
-        if not product:
-            raise ValueError("PRODUCT_NOT_FOUND")
-        if not product.get('is_active', True):
-            raise ValueError("PRODUCT_INACTIVE")
-        inv = inventory_repo.find_by_product_id(pid)
-        available = inv.get('quantity_on_hand', 0) if inv else 0
-        if available < qty:
-            raise ValueError("INSUFFICIENT_STOCK")
-        unit_price = Decimal(str(product['unit_price']))
-        line_total = unit_price * qty
-        order_items_details.append({
-            "product_id": pid,
-            "product_name": product['name'],
-            "quantity": qty,
-            "unit_price": float(unit_price) if not isinstance(unit_price, float) else unit_price,
-            "line_total": float(line_total),
-            "_unit_price_decimal": unit_price,
-        })
-
-    total_amount = sum(Decimal(str(x['line_total'])) for x in order_items_details)
-
-    # Create order
-    order_number = f"ORD-{uuid.uuid4().hex[:12].upper()}"
-    order = {
-        "order_number": order_number,
+def _request_fingerprint(
+    order_in: OrderCreate, consolidated: dict[int, int]
+) -> str:
+    payload = {
         "customer_reference": order_in.customer_reference,
-        "status": "CONFIRMED",
-        "total_amount": float(total_amount),
-        "items": [],
+        "items": [
+            {"product_id": product_id, "quantity": quantity}
+            for product_id, quantity in sorted(consolidated.items())
+        ],
     }
-    # build items
-    for od in order_items_details:
-        order["items"].append({
-            "product_id": od["product_id"],
-            "product_name": od["product_name"],
-            "quantity": od["quantity"],
-            "unit_price": od["unit_price"],
-            "line_total": od["line_total"],
-        })
-    created = orders_repo.add_order(order)
-    # deduct stock and record movements
-    for od in order_items_details:
-        inventory_repo.adjust_inventory(od["product_id"], -od["quantity"])
-        movements_repo.add_movement(od["product_id"], "out", -od["quantity"], "order_created", order_id=created['id'])
-    return created
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
 
 
-def list_orders(status_filter: str | None = None):
-    orders = orders_repo.find_all()
-    if status_filter:
-        orders = [o for o in orders if o.get('status') == status_filter]
-    return orders
-
-
-def get_order(order_id: int):
-    order = orders_repo.find_by_id(order_id)
-    if not order:
-        raise ValueError("ORDER_NOT_FOUND")
+def _get_order_or_404(db: Session, order_id: int) -> Order:
+    order = orders_repo.find_by_id(db, order_id)
+    if order is None:
+        raise NotFoundError("Order not found")
     return order
 
 
-def cancel_order(order_id: int):
-    order = orders_repo.find_by_id(order_id)
-    if not order:
-        raise ValueError("ORDER_NOT_FOUND")
-    if order.get('status') == "CANCELLED":
-        raise ValueError("ALREADY_CANCELLED")
-    if order.get('status') not in ("CONFIRMED", "PENDING"):
-        raise ValueError("NOT_ELIGIBLE")
-    # return stock
-    items = order.get('items', [])
-    for item in items:
-        pid = item['product_id']
-        qty = item['quantity']
-        inventory_repo.adjust_inventory(pid, qty)
-        movements_repo.add_movement(pid, "in", qty, "order_cancelled", order_id=order_id)
-    updated = orders_repo.update_order(order_id, {"status": "CANCELLED"})
-    return updated
+def create_order(
+    db: Session,
+    order_in: OrderCreate,
+    idempotency_key: str | None = None,
+) -> Order:
+    key = idempotency_key.strip() if idempotency_key else None
+    consolidated = _consolidate_items(order_in.items)
+    if not consolidated:
+        raise UnprocessableEntityError("EMPTY_ORDER")
+
+    fingerprint = _request_fingerprint(order_in, consolidated)
+
+    if key is not None:
+        existing = orders_repo.find_by_idempotency_key(db, key)
+        if existing is not None:
+            if existing.request_fingerprint != fingerprint:
+                raise ConflictError("Idempotency key reused with a different payload")
+            return existing
+
+    details: list[dict] = []
+    for product_id, quantity in consolidated.items():
+        product = products_repo.find_by_id(db, product_id)
+        if product is None:
+            raise NotFoundError("Product not found")
+        if not product.is_active:
+            raise ConflictError("Product inactive")
+
+        inventory = inventory_repo.find_by_product_id(db, product_id)
+        available = inventory.quantity_on_hand if inventory is not None else 0
+        if available < quantity:
+            raise ConflictError("Insufficient stock")
+
+        unit_price = product.unit_price
+        details.append(
+            {
+                "product_id": product_id,
+                "product_name": product.name,
+                "quantity": quantity,
+                "unit_price": unit_price,
+                "line_total": unit_price * quantity,
+            }
+        )
+
+    total_amount = sum(
+        (detail["line_total"] for detail in details), Decimal("0.00")
+    )
+    order = Order(
+        order_number=f"ORD-{uuid.uuid4().hex[:12].upper()}",
+        customer_reference=order_in.customer_reference,
+        status=OrderStatus.CONFIRMED,
+        total_amount=total_amount,
+        idempotency_key=key,
+        request_fingerprint=fingerprint if key is not None else None,
+        items=[
+            OrderItem(
+                product_id=detail["product_id"],
+                product_name=detail["product_name"],
+                quantity=detail["quantity"],
+                unit_price=detail["unit_price"],
+                line_total=detail["line_total"],
+            )
+            for detail in details
+        ],
+    )
+
+    try:
+        orders_repo.add(db, order)
+
+        for detail in details:
+            if not inventory_repo.try_decrement(
+                db, detail["product_id"], detail["quantity"]
+            ):
+                raise ConflictError("Insufficient stock")
+            movements_repo.add(
+                db,
+                InventoryMovement(
+                    product_id=detail["product_id"],
+                    order_id=order.id,
+                    movement_type=MovementType.OUT,
+                    quantity_delta=-detail["quantity"],
+                    reason="order_created",
+                ),
+            )
+
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        if key is not None:
+            existing = orders_repo.find_by_idempotency_key(db, key)
+            if existing is not None:
+                if existing.request_fingerprint != fingerprint:
+                    raise ConflictError(
+                        "Idempotency key reused with a different payload"
+                    ) from None
+                return existing
+        raise ConflictError("Could not create order") from None
+    except Exception:
+        db.rollback()
+        raise
+
+    return order
+
+
+def list_orders(
+    db: Session, status_filter: OrderStatus | None = None
+) -> list[Order]:
+    return orders_repo.find_all(db, status_filter=status_filter)
+
+
+def get_order(db: Session, order_id: int) -> Order:
+    return _get_order_or_404(db, order_id)
+
+
+def cancel_order(db: Session, order_id: int) -> Order:
+    order = _get_order_or_404(db, order_id)
+
+    if order.status == OrderStatus.CANCELLED:
+        raise ConflictError("Order already cancelled")
+    if order.status not in (OrderStatus.PENDING, OrderStatus.CONFIRMED):
+        raise ConflictError("Order not eligible for cancellation")
+
+    try:
+        if not orders_repo.try_mark_cancelled(db, order_id):
+            db.rollback()
+            current = orders_repo.find_by_id(db, order_id)
+            if current is not None and current.status == OrderStatus.CANCELLED:
+                raise ConflictError("Order already cancelled")
+            raise ConflictError("Order not eligible for cancellation")
+
+        for item in order.items:
+            inventory_repo.get_or_create(db, item.product_id, initial_quantity=0)
+            if not inventory_repo.increment(db, item.product_id, item.quantity):
+                raise ConflictError("Product not found")
+            movements_repo.add(
+                db,
+                InventoryMovement(
+                    product_id=item.product_id,
+                    order_id=order.id,
+                    movement_type=MovementType.IN,
+                    quantity_delta=item.quantity,
+                    reason="order_cancelled",
+                ),
+            )
+
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+
+    db.refresh(order)
+    return order
