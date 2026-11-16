@@ -1,70 +1,22 @@
-from pathlib import Path
-import json
-import os
-import tempfile
-import copy
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from app.models.product import Product
 
 
-file_path = Path(__file__).resolve().parent.parent / "db" / "products_db.json"
-_products = None
+def find_all(db: Session) -> list[Product]:
+    return list(db.scalars(select(Product).order_by(Product.id)).all())
 
 
-def _load() -> list[dict]:
-    global _products
-    if _products is None:
-        try:
-            with open(file_path, "r", encoding="utf-8-sig") as f:
-                json_content = f.read()
-                _products = json.loads(json_content) if json_content.strip() else []
-        except FileNotFoundError:
-            _products = []
-    return _products
+def find_by_id(db: Session, product_id: int) -> Product | None:
+    return db.get(Product, product_id)
 
 
-def _save() -> None:
-    global _products
-    dir_name = os.path.dirname(file_path) or '.'
-    fd, tmp_path = tempfile.mkstemp(dir=dir_name, suffix='.tmp')
-    try:
-        with os.fdopen(fd, 'w', encoding='utf-8') as f:
-            json.dump(_products, f, indent=4, ensure_ascii=False)
-        os.replace(tmp_path, file_path)
-    except Exception:
-        try:
-            os.unlink(tmp_path)
-        except Exception:
-            pass
-        raise
+def find_by_sku(db: Session, sku: str) -> Product | None:
+    return db.scalar(select(Product).where(Product.sku == sku))
 
 
-def _find_raw(product_id: int) -> dict | None:
-    _load()
-    for product in _products:
-        if product['id'] == product_id:
-            return product
-    return None
-
-
-def find_all() -> list[dict]:
-    return copy.deepcopy(_load())
-
-
-def find_by_id(product_id: int) -> dict | None:
-    return copy.deepcopy(_find_raw(product_id))
-
-
-def add_product(new_product: dict) -> None:
-    global _products
-    _load()
-    _products.append(new_product)
-    _save()
-
-
-def update_product(product_id: int, updated_product: dict) -> bool:
-    global _products
-    product = _find_raw(product_id)
-    if not product:
-        return False
-    product.update(updated_product)
-    _save()
-    return True
+def add(db: Session, product: Product) -> Product:
+    db.add(product)
+    db.flush()
+    return product

@@ -1,87 +1,40 @@
-from pathlib import Path
-import json
-import os
-import tempfile
-import copy
-from datetime import datetime, timezone
+from sqlalchemy import select, update
+from sqlalchemy.orm import Session
+
+from app.core.enums import OrderStatus
+from app.core.time import utc_now
+from app.models.order import Order
 
 
-file_path = Path(__file__).resolve().parent.parent / "db" / "orders_db.json"
-_orders = None
+def find_all(db: Session, status_filter: OrderStatus | None = None) -> list[Order]:
+    statement = select(Order).order_by(Order.id)
+    if status_filter is not None:
+        statement = statement.where(Order.status == status_filter)
+    return list(db.scalars(statement).all())
 
 
-def _get_utc_now() -> str:
-    return datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
+def find_by_id(db: Session, order_id: int) -> Order | None:
+    return db.get(Order, order_id)
 
 
-def _load() -> list[dict]:
-    global _orders
-    if _orders is None:
-        try:
-            with open(file_path, "r", encoding="utf-8-sig") as f:
-                json_content = f.read()
-                _orders = json.loads(json_content) if json_content.strip() else []
-        except FileNotFoundError:
-            _orders = []
-    return _orders
+def find_by_idempotency_key(db: Session, key: str) -> Order | None:
+    return db.scalar(select(Order).where(Order.idempotency_key == key))
 
 
-def _save() -> None:
-    global _orders
-    dir_name = os.path.dirname(file_path) or '.'
-    fd, tmp_path = tempfile.mkstemp(dir=dir_name, suffix='.tmp')
-    try:
-        with os.fdopen(fd, 'w', encoding='utf-8') as f:
-            json.dump(_orders, f, indent=4, ensure_ascii=False)
-        os.replace(tmp_path, file_path)
-    except Exception:
-        try:
-            os.unlink(tmp_path)
-        except Exception:
-            pass
-        raise
+def add(db: Session, order: Order) -> Order:
+    db.add(order)
+    db.flush()
+    return order
 
 
-def find_all() -> list[dict]:
-    return copy.deepcopy(_load())
-
-
-def find_by_id(order_id: int) -> dict | None:
-    _load()
-    for o in _orders:
-        if o.get('id') == order_id:
-            return copy.deepcopy(o)
-    return None
-
-
-def find_by_order_number(order_number: str) -> dict | None:
-    _load()
-    for o in _orders:
-        if o.get('order_number') == order_number:
-            return copy.deepcopy(o)
-    return None
-
-
-def add_order(order: dict) -> dict:
-    global _orders
-    _load()
-    order_id = max([o.get('id', 0) for o in _orders], default=0) + 1
-    order['id'] = order_id
-    if 'created_at' not in order:
-        order['created_at'] = _get_utc_now()
-    order['updated_at'] = _get_utc_now()
-    _orders.append(order)
-    _save()
-    return copy.deepcopy(order)
-
-
-def update_order(order_id: int, updates: dict) -> dict | None:
-    global _orders
-    _load()
-    for o in _orders:
-        if o.get('id') == order_id:
-            o.update(updates)
-            o['updated_at'] = _get_utc_now()
-            _save()
-            return copy.deepcopy(o)
-    return None
+def try_mark_cancelled(db: Session, order_id: int) -> bool:
+    """Atomically cancel only an order that is still cancellable."""
+    result = db.execute(
+        update(Order)
+        .where(
+            Order.id == order_id,
+            Order.status.in_([OrderStatus.PENDING, OrderStatus.CONFIRMED]),
+        )
+        .values(status=OrderStatus.CANCELLED, updated_at=utc_now())
+    )
+    return result.rowcount == 1

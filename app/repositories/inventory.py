@@ -1,84 +1,61 @@
-from pathlib import Path
-import json
-import os
-import tempfile
-import copy
+from sqlalchemy import select, update
+from sqlalchemy.orm import Session
+
+from app.core.time import utc_now
+from app.models.inventory import Inventory
 
 
-file_path = Path(__file__).resolve().parent.parent / "db" / "inventory_db.json"
-_inventory = None
+def find_all(db: Session) -> list[Inventory]:
+    return list(db.scalars(select(Inventory).order_by(Inventory.product_id)).all())
 
 
-def _load() -> list[dict]:
-    global _inventory
-    if _inventory is None:
-        try:
-            with open(file_path, "r", encoding="utf-8-sig") as f:
-                json_content = f.read()
-                _inventory = json.loads(json_content) if json_content.strip() else []
-        except FileNotFoundError:
-            _inventory = []
-    return _inventory
+def find_by_product_id(db: Session, product_id: int) -> Inventory | None:
+    return db.get(Inventory, product_id)
 
 
-def _save() -> None:
-    global _inventory
-    dir_name = os.path.dirname(file_path) or '.'
-    fd, tmp_path = tempfile.mkstemp(dir=dir_name, suffix='.tmp')
-    try:
-        with os.fdopen(fd, 'w', encoding='utf-8') as f:
-            json.dump(_inventory, f, indent=4, ensure_ascii=False)
-        os.replace(tmp_path, file_path)
-    except Exception:
-        try:
-            os.unlink(tmp_path)
-        except Exception:
-            pass
-        raise
+def get_or_create(db: Session, product_id: int, initial_quantity: int = 0) -> Inventory:
+    inventory = db.get(Inventory, product_id)
+    if inventory is None:
+        inventory = Inventory(
+            product_id=product_id,
+            quantity_on_hand=initial_quantity,
+        )
+        db.add(inventory)
+        db.flush()
+    return inventory
 
 
-def find_all() -> list[dict]:
-    return copy.deepcopy(_load())
+def set_quantity(db: Session, product_id: int, quantity: int) -> Inventory:
+    inventory = get_or_create(db, product_id)
+    inventory.quantity_on_hand = quantity
+    inventory.updated_at = utc_now()
+    db.flush()
+    return inventory
 
 
-def find_by_product_id(product_id: int) -> dict | None:
-    _load()
-    for item in _inventory:
-        if item.get('product_id') == product_id:
-            return copy.deepcopy(item)
-    return None
+def increment(db: Session, product_id: int, quantity: int) -> bool:
+    result = db.execute(
+        update(Inventory)
+        .where(Inventory.product_id == product_id)
+        .values(
+            quantity_on_hand=Inventory.quantity_on_hand + quantity,
+            updated_at=utc_now(),
+        )
+    )
+    return result.rowcount == 1
 
 
-def upsert_inventory(product_id: int, quantity_on_hand: int) -> dict:
-    global _inventory
-    _load()
-    for item in _inventory:
-        if item.get('product_id') == product_id:
-            item['quantity_on_hand'] = quantity_on_hand
-            _save()
-            return copy.deepcopy(item)
-    new_item = {"product_id": product_id, "quantity_on_hand": quantity_on_hand}
-    _inventory.append(new_item)
-    _save()
-    return copy.deepcopy(new_item)
-
-
-def adjust_inventory(product_id: int, delta: int) -> dict:
-    global _inventory
-    _load()
-    for item in _inventory:
-        if item.get('product_id') == product_id:
-            new_qty = item['quantity_on_hand'] + delta
-            if new_qty < 0:
-                raise ValueError("INSUFFICIENT_STOCK")
-            item['quantity_on_hand'] = new_qty
-            _save()
-            return copy.deepcopy(item)
-    # if not exists, treat as 0
-    new_qty = 0 + delta
-    if new_qty < 0:
-        raise ValueError("INSUFFICIENT_STOCK")
-    new_item = {"product_id": product_id, "quantity_on_hand": new_qty}
-    _inventory.append(new_item)
-    _save()
-    return copy.deepcopy(new_item)
+def try_decrement(db: Session, product_id: int, quantity: int) -> bool:
+    """Atomically decrement only when enough stock exists."""
+    result = db.execute(
+        update(Inventory)
+        .where(
+            Inventory.product_id == product_id,
+            Inventory.quantity_on_hand >= quantity,
+        )
+        .values(
+            quantity_on_hand=Inventory.quantity_on_hand - quantity,
+            updated_at=utc_now(),
+        )
+    )
+    return result.rowcount == 1
