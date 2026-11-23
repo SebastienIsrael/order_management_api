@@ -1,35 +1,174 @@
 # Order Management API
 
 ## Problem statement
+
 Small electronics store needs order processing and inventory management.
 
-## Features (V1 - In-memory prototype)
-- Product catalog (create, list, get, update, toggle status)
-- Inventory management with movements
-- Order creation with multiple items, price calculation on server
-- Consolidation of duplicate products in order
-- Reject orders with insufficient stock (no partial fulfillment)
-- Cancel eligible orders with stock return
-- Basic validation and error handling
+## Features
+
+- Product catalog: create, list, get, update, toggle status.
+- Inventory management with an append-only movement history.
+- Order creation with multiple items, server-side price calculation and duplicate product consolidation.
+- Orders are rejected when any item has insufficient stock (no partial fulfillment).
+- Eligible orders can be cancelled and return their stock to inventory.
+- Relational persistence with SQLAlchemy and Alembic migrations.
+- Optional `Idempotency-Key` header for order creation.
+- Typed domain errors translated to consistent HTTP responses.
+- Automated tests with an isolated in-memory SQLite database.
 
 ## Tech stack
-- Python 3.13, FastAPI, Pydantic, Uvicorn
-- In-memory JSON storage (V1)
 
-## Structure
-See code layout under app/
+- Python 3.14+
+- FastAPI, Pydantic and Uvicorn
+- SQLAlchemy 2.x
+- Alembic
+- SQLite by default; PostgreSQL supported through `DATABASE_URL`
+- pytest and httpx for tests
 
-## Running
-```bash
-pip install -e .
-uvicorn app.main:app --reload
+## Architecture
+
+```mermaid
+flowchart TD
+    CLIENT[HTTP client] --> MAIN[app/main.py]
+    MAIN --> ROUTER[app/api/v1/router.py]
+    ROUTER --> ENDPOINTS[app/api/v1/endpoints/*]
+    ENDPOINTS --> SCHEMAS[app/schemas/*]
+    ENDPOINTS --> SERVICES[app/services/*]
+    SERVICES --> REPOS[app/repositories/*]
+    REPOS --> MODELS[app/models/*]
+    MODELS --> DB[(SQL database)]
+    SERVICES --> EXCEPTIONS[app/core/exceptions.py]
+    EXCEPTIONS --> MAIN
 ```
 
-## API docs
-Available at /docs
+Request flow:
 
-## Limitations (V1)
-- Data stored in JSON files, not persistent across different storage backends as required for V2
-- Idempotency/basic concurrency protections limited in pure in-memory approach
-- No auth/authorization
-- Tests not yet comprehensive
+```text
+HTTP -> endpoints -> services -> repositories -> SQLAlchemy models -> database
+```
+
+- Endpoints only handle HTTP concerns and opening a database session.
+- Services own business rules, transactions (`commit`/`rollback`) and idempotency.
+- Repositories contain data-access operations and never commit.
+- Pydantic schemas define API input/output contracts.
+- SQLAlchemy models define the relational schema.
+- `app/core/exceptions.py` provides expected application errors and the global handler.
+
+## Project layout
+
+```text
+app/
+├── main.py                  # FastAPI app and exception handler registration
+├── api/v1/
+│   ├── router.py            # Aggregates the versioned routers
+│   └── endpoints/           # products, inventory and orders HTTP routes
+├── core/
+│   ├── config.py            # Environment settings
+│   ├── enums.py             # OrderStatus and MovementType
+│   ├── exceptions.py        # Application errors + HTTP handler
+│   └── time.py              # UTC timestamp helper
+├── db/
+│   ├── base.py              # Declarative Base and naming convention
+│   ├── session.py           # Engine, SessionLocal and get_db dependency
+│   └── *_db.json            # Legacy V1 data (not used at runtime)
+├── models/                  # SQLAlchemy ORM models
+├── repositories/            # Data access
+├── schemas/                 # Pydantic request/response models
+└── services/                # Business rules and transaction boundaries
+migrations/                  # Alembic environment and versions
+scripts/
+├── seed.py                  # Demo catalog + initial stock
+└── import_json.py           # Imports the legacy JSON data
+tests/                       # API tests using in-memory SQLite
+```
+
+## Running
+
+Requirements: Python 3.14+ and [uv](https://docs.astral.sh/uv/).
+
+```bash
+uv sync
+cp .env.example .env              # Windows: Copy-Item .env.example .env
+uv run python -m alembic upgrade head
+```
+
+Choose one way to populate data:
+
+```bash
+# Option A: import the existing V1 JSON data (products, inventory, orders, movements)
+uv run python scripts/import_json.py
+
+# Option B: create a small demo catalog with 100 units per product
+uv run python scripts/seed.py
+```
+
+Start the development server:
+
+```bash
+uv run fastapi dev
+# or: uv run uvicorn app.main:app --reload
+```
+
+- API: http://127.0.0.1:8000
+- Swagger UI: http://127.0.0.1:8000/docs
+
+> On some Windows machines the `alembic` console script is blocked by Application Control.
+> Use `uv run python -m alembic ...`, which is the command documented above.
+
+## Environment variables
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `APP_ENV` | `dev` | Environment label |
+| `DATABASE_URL` | `sqlite:///./order_management.db` | SQLAlchemy connection URL |
+| `SQL_ECHO` | `false` | Log SQL statements |
+
+PostgreSQL example:
+
+```env
+DATABASE_URL=postgresql+psycopg://user:password@localhost:5432/order_db
+```
+
+## Migrations
+
+```bash
+# Apply all migrations
+uv run python -m alembic upgrade head
+
+# Create a migration after changing app/models/*
+uv run python -m alembic revision --autogenerate -m "describe change"
+uv run python -m alembic upgrade head
+```
+
+Always review autogenerated migrations before applying them.
+
+## Tests
+
+```bash
+uv run pytest
+uv run pytest tests/api/test_orders.py -q
+uv run pytest tests/api/test_orders.py::test_idempotency_key_returns_the_same_order -q
+```
+
+The test suite creates a fresh in-memory SQLite database per test and overrides the
+`get_db` dependency, so it never touches the development database.
+
+## Business rules worth knowing
+
+- Prices come from the product row, never from the client.
+- Duplicate `product_id` entries in an order are consolidated.
+- Stock is checked before order creation and decremented atomically with a conditional
+  `UPDATE ... WHERE quantity_on_hand >= requested`.
+- Order creation and cancellation are transactional: order, stock and movement changes
+  are committed together or rolled back.
+- `Idempotency-Key` replays the original order when the payload is identical and returns
+  `409` when the same key is reused with a different payload.
+- Cancelling an order restores stock and records an `order_cancelled` movement.
+- Movement type `adjustment` currently adds the informed quantity (legacy V1 behavior).
+
+## Limitations
+
+- No authentication or authorization.
+- No pagination for list endpoints.
+- `adjustment` does not set an absolute stock value.
+- The legacy JSON files remain in `app/db/` only as an import source.
